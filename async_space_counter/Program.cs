@@ -77,8 +77,9 @@ namespace async_space_counter
         {
             var counter = txtFiles.Select(async file =>
             {
+                string content = await FileReader.ReadFileAsync(file);
                 Stopwatch TaskDur = Stopwatch.StartNew();
-                int spaceCount = await SpaceCounter.SpaceCounterAsync(file);//????????????????
+                int spaceCount = await SpaceCounter.SpaceCounterAsync(content);
                 TaskDur.Stop();
                 await Console.Out.WriteLineAsync($"{Path.GetFileName(file)} ----- Spaces: {spaceCount}, with time {TaskDur.ElapsedMilliseconds} ms");
             });
@@ -117,7 +118,7 @@ namespace async_space_counter
                     string content = await File.ReadAllTextAsync(file);
 
                     // Разбиваем содержимое на строки
-                    string[] lines = content.Split(Environment.NewLine);
+                    string[] lines = content.Split(Environment.NewLine);// очень долго?
 
                     var tasks = lines.Select(async line =>
                     {
@@ -157,8 +158,8 @@ namespace async_space_counter
             string folderPath = "C:/Users/danil/source/repos/WpfCalculator/async_space_counter/async_space_counter/files/";
             string[] txtFiles = Directory.GetFiles(folderPath, "*.txt");
 
-            //await Sequential.Start(txtFiles);
-            //await Parallel.Start(txtFiles);
+            await Sequential.Start(txtFiles);
+            await Parallel.Start(txtFiles);
             await LineByLine.Start(txtFiles);
 
             //// Вариант г: Асинхронный подсчет пробелов
