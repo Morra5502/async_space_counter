@@ -1,0 +1,331 @@
+Skip to main content
+We use optional cookies to improve your experience on our websites, such as through social media connections, and to display personalized advertising based on your online activity. If you reject optional cookies, only cookies necessary to provide you the services will be used. You may change your selection by clicking “Manage Cookies” at the bottom of the page. Privacy Statement Third-Party Cookies
+Accept Reject Manage cookies
+Microsoft Learn Challenge
+Nov 23, 2024 – Jan 10, 2025
+
+Learn
+Sign in
+C#
+Search
+Filter by title
+C# documentation
+Overview
+Asynchronous programming scenarios
+Task asynchronous programming model
+Async return types
+Process asynchronous tasks as they complete
+Asynchronous file access
+Cancel a list of tasks
+Cancel tasks after a period of time
+Generate and consume asynchronous streams
+Learn  .NET  C# 
+Process asynchronous tasks as they complete (C#)
+Article
+05/23/2023
+2 contributors
+In this article
+Prerequisites
+Create example application
+Add fields
+Update application entry point
+Show 4 more
+By using Task.WhenAny, you can start multiple tasks at the same time and process them one by one as they're completed rather than process them in the order in which they're started.
+
+The following example uses a query to create a collection of tasks. Each task downloads the contents of a specified website. In each iteration of a while loop, an awaited call to WhenAny returns the task in the collection of tasks that finishes its download first. That task is removed from the collection and processed. The loop repeats until the collection contains no more tasks.
+
+Prerequisites
+You can follow this tutorial by using one of the following options:
+
+Visual Studio 2022 with the .NET desktop development workload installed. The .NET SDK is automatically installed when you select this workload.
+The .NET SDK with a code editor of your choice, such as Visual Studio Code.
+Create example application
+Create a new .NET Core console application. You can create one by using the dotnet new console command or from Visual Studio.
+
+Open the Program.cs file in your code editor, and replace the existing code with this code:
+
+C#
+
+Copy
+using System.Diagnostics;
+
+namespace ProcessTasksAsTheyFinish;
+
+class Program
+{
+    static void Main(string[] args)
+    {
+        Console.WriteLine("Hello World!");
+    }
+}
+Add fields
+In the Program class definition, add the following two fields:
+
+C#
+
+Copy
+static readonly HttpClient s_client = new HttpClient
+{
+    MaxResponseContentBufferSize = 1_000_000
+};
+
+static readonly IEnumerable<string> s_urlList = new string[]
+{
+    "https://learn.microsoft.com",
+    "https://learn.microsoft.com/aspnet/core",
+    "https://learn.microsoft.com/azure",
+    "https://learn.microsoft.com/azure/devops",
+    "https://learn.microsoft.com/dotnet",
+    "https://learn.microsoft.com/dynamics365",
+    "https://learn.microsoft.com/education",
+    "https://learn.microsoft.com/enterprise-mobility-security",
+    "https://learn.microsoft.com/gaming",
+    "https://learn.microsoft.com/graph",
+    "https://learn.microsoft.com/microsoft-365",
+    "https://learn.microsoft.com/office",
+    "https://learn.microsoft.com/powershell",
+    "https://learn.microsoft.com/sql",
+    "https://learn.microsoft.com/surface",
+    "https://learn.microsoft.com/system-center",
+    "https://learn.microsoft.com/visualstudio",
+    "https://learn.microsoft.com/windows",
+    "https://learn.microsoft.com/maui"
+};
+The HttpClient exposes the ability to send HTTP requests and receive HTTP responses. The s_urlList holds all of the URLs that the application plans to process.
+
+Update application entry point
+The main entry point into the console application is the Main method. Replace the existing method with the following:
+
+C#
+
+Copy
+static Task Main() => SumPageSizesAsync();
+The updated Main method is now considered an Async main, which allows for an asynchronous entry point into the executable. It is expressed as a call to SumPageSizesAsync.
+
+Create the asynchronous sum page sizes method
+Below the Main method, add the SumPageSizesAsync method:
+
+C#
+
+Copy
+static async Task SumPageSizesAsync()
+{
+    var stopwatch = Stopwatch.StartNew();
+
+    IEnumerable<Task<int>> downloadTasksQuery =
+        from url in s_urlList
+        select ProcessUrlAsync(url, s_client);
+
+    List<Task<int>> downloadTasks = downloadTasksQuery.ToList();
+
+    int total = 0;
+    while (downloadTasks.Any())
+    {
+        Task<int> finishedTask = await Task.WhenAny(downloadTasks);
+        downloadTasks.Remove(finishedTask);
+        total += await finishedTask;
+    }
+
+    stopwatch.Stop();
+
+    Console.WriteLine($"\nTotal bytes returned:  {total:#,#}");
+    Console.WriteLine($"Elapsed time:          {stopwatch.Elapsed}\n");
+}
+The while loop removes one of the tasks in each iteration. After every task has completed, the loop ends. The method starts by instantiating and starting a Stopwatch. It then includes a query that, when executed, creates a collection of tasks. Each call to ProcessUrlAsync in the following code returns a Task<TResult>, where TResult is an integer:
+
+C#
+
+Copy
+IEnumerable<Task<int>> downloadTasksQuery =
+    from url in s_urlList
+    select ProcessUrlAsync(url, s_client);
+Due to deferred execution with the LINQ, you call Enumerable.ToList to start each task.
+
+C#
+
+Copy
+List<Task<int>> downloadTasks = downloadTasksQuery.ToList();
+The while loop performs the following steps for each task in the collection:
+
+Awaits a call to WhenAny to identify the first task in the collection that has finished its download.
+
+C#
+
+Copy
+Task<int> finishedTask = await Task.WhenAny(downloadTasks);
+Removes that task from the collection.
+
+C#
+
+Copy
+downloadTasks.Remove(finishedTask);
+Awaits finishedTask, which is returned by a call to ProcessUrlAsync. The finishedTask variable is a Task<TResult> where TResult is an integer. The task is already complete, but you await it to retrieve the length of the downloaded website, as the following example shows. If the task is faulted, await will throw the first child exception stored in the AggregateException, unlike reading the Task<TResult>.Result property, which would throw the AggregateException.
+
+C#
+
+Copy
+total += await finishedTask;
+Add process method
+Add the following ProcessUrlAsync method below the SumPageSizesAsync method:
+
+C#
+
+Copy
+static async Task<int> ProcessUrlAsync(string url, HttpClient client)
+{
+    byte[] content = await client.GetByteArrayAsync(url);
+    Console.WriteLine($"{url,-60} {content.Length,10:#,#}");
+
+    return content.Length;
+}
+For any given URL, the method will use the client instance provided to get the response as a byte[]. The length is returned after the URL and length is written to the console.
+
+Run the program several times to verify that the downloaded lengths don't always appear in the same order.
+
+ Caution
+
+You can use WhenAny in a loop, as described in the example, to solve problems that involve a small number of tasks. However, other approaches are more efficient if you have a large number of tasks to process. For more information and examples, see Processing tasks as they complete.
+
+Complete example
+The following code is the complete text of the Program.cs file for the example.
+
+C#
+
+Copy
+using System.Diagnostics;
+
+HttpClient s_client = new()
+{
+    MaxResponseContentBufferSize = 1_000_000
+};
+
+IEnumerable<string> s_urlList = new string[]
+{
+    "https://learn.microsoft.com",
+    "https://learn.microsoft.com/aspnet/core",
+    "https://learn.microsoft.com/azure",
+    "https://learn.microsoft.com/azure/devops",
+    "https://learn.microsoft.com/dotnet",
+    "https://learn.microsoft.com/dynamics365",
+    "https://learn.microsoft.com/education",
+    "https://learn.microsoft.com/enterprise-mobility-security",
+    "https://learn.microsoft.com/gaming",
+    "https://learn.microsoft.com/graph",
+    "https://learn.microsoft.com/microsoft-365",
+    "https://learn.microsoft.com/office",
+    "https://learn.microsoft.com/powershell",
+    "https://learn.microsoft.com/sql",
+    "https://learn.microsoft.com/surface",
+    "https://learn.microsoft.com/system-center",
+    "https://learn.microsoft.com/visualstudio",
+    "https://learn.microsoft.com/windows",
+    "https://learn.microsoft.com/maui"
+};
+
+await SumPageSizesAsync();
+
+async Task SumPageSizesAsync()
+{
+    var stopwatch = Stopwatch.StartNew();
+
+    IEnumerable<Task<int>> downloadTasksQuery =
+        from url in s_urlList
+        select ProcessUrlAsync(url, s_client);
+
+    List<Task<int>> downloadTasks = downloadTasksQuery.ToList();
+
+    int total = 0;
+    while (downloadTasks.Any())
+    {
+        Task<int> finishedTask = await Task.WhenAny(downloadTasks);
+        downloadTasks.Remove(finishedTask);
+        total += await finishedTask;
+    }
+
+    stopwatch.Stop();
+
+    Console.WriteLine($"\nTotal bytes returned:    {total:#,#}");
+    Console.WriteLine($"Elapsed time:              {stopwatch.Elapsed}\n");
+}
+
+static async Task<int> ProcessUrlAsync(string url, HttpClient client)
+{
+    byte[] content = await client.GetByteArrayAsync(url);
+    Console.WriteLine($"{url,-60} {content.Length,10:#,#}");
+
+    return content.Length;
+}
+
+// Example output:
+// https://learn.microsoft.com                                      132,517
+// https://learn.microsoft.com/powershell                            57,375
+// https://learn.microsoft.com/gaming                                33,549
+// https://learn.microsoft.com/aspnet/core                           88,714
+// https://learn.microsoft.com/surface                               39,840
+// https://learn.microsoft.com/enterprise-mobility-security          30,903
+// https://learn.microsoft.com/microsoft-365                         67,867
+// https://learn.microsoft.com/windows                               26,816
+// https://learn.microsoft.com/maui                               57,958
+// https://learn.microsoft.com/dotnet                                78,706
+// https://learn.microsoft.com/graph                                 48,277
+// https://learn.microsoft.com/dynamics365                           49,042
+// https://learn.microsoft.com/office                                67,867
+// https://learn.microsoft.com/system-center                         42,887
+// https://learn.microsoft.com/education                             38,636
+// https://learn.microsoft.com/azure                                421,663
+// https://learn.microsoft.com/visualstudio                          30,925
+// https://learn.microsoft.com/sql                                   54,608
+// https://learn.microsoft.com/azure/devops                          86,034
+
+// Total bytes returned:    1,454,184
+// Elapsed time:            00:00:01.1290403
+See also
+WhenAny
+Asynchronous programming with async and await (C#)
+ Collaborate with us on GitHub
+The source for this content can be found on GitHub, where you can also create and review issues and pull requests. For more information, see our contributor guide.
+
+.NET feedback
+
+.NET is an open source project. Select a link to provide feedback:
+
+ Open a documentation issue
+ Provide product feedback
+Additional resources
+Documentation
+
+The Task Asynchronous Programming (TAP) model with async and await" - C#
+
+Learn when and how to use Task-based async programming, a simplified approach to asynchronous programming in C#.
+
+Async return types - C#
+
+Learn about the return types that async methods can have in C# with code examples for each type.
+
+Asynchronous programming scenarios - C#
+
+Learn about the C# language-level asynchronous programming model provided by .NET Core.
+
+Show 4 more
+Training
+
+Learning path
+
+Build distributed apps with .NET Aspire - Training
+
+Learn how to build observable, production ready, distributed applications with .NET Aspire.
+
+Certification
+
+Microsoft Certified: Azure Developer Associate - Certifications
+
+Build end-to-end solutions in Microsoft Azure to create Azure Functions, implement and manage web apps, develop solutions utilizing Azure storage, and more.
+
+Manage cookies
+Previous Versions
+Blog
+Contribute
+Privacy
+Terms of Use
+Trademarks
+© Microsoft 2024

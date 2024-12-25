@@ -1,0 +1,228 @@
+Skip to main content
+We use optional cookies to improve your experience on our websites, such as through social media connections, and to display personalized advertising based on your online activity. If you reject optional cookies, only cookies necessary to provide you the services will be used. You may change your selection by clicking “Manage Cookies” at the bottom of the page. Privacy Statement Third-Party Cookies
+Accept Reject Manage cookies
+Microsoft Learn Challenge
+Nov 23, 2024 – Jan 10, 2025
+
+Learn
+Sign in
+C#
+Search
+Filter by title
+C# documentation
+Overview
+Asynchronous programming scenarios
+Task asynchronous programming model
+Async return types
+Process asynchronous tasks as they complete
+Asynchronous file access
+Cancel a list of tasks
+Cancel tasks after a period of time
+Generate and consume asynchronous streams
+Learn  .NET  C# 
+Cancel async tasks after a period of time
+Article
+09/08/2023
+3 contributors
+In this article
+Prerequisites
+Update application entry point
+Complete example
+See also
+You can cancel an asynchronous operation after a period of time by using the CancellationTokenSource.CancelAfter method if you don't want to wait for the operation to finish. This method schedules the cancellation of any associated tasks that aren't complete within the period of time that's designated by the CancelAfter expression.
+
+This example adds to the code that's developed in Cancel a list of tasks (C#) to download a list of websites and to display the length of the contents of each one.
+
+This tutorial covers:
+
+Updating an existing .NET console application
+Scheduling a cancellation
+Prerequisites
+This tutorial requires the following:
+
+You're expected to have created an application in the Cancel a list of tasks (C#) tutorial
+.NET 5 or later SDK
+Integrated development environment (IDE)
+We recommend Visual Studio or Visual Studio Code
+Update application entry point
+Replace the existing Main method with the following:
+
+C#
+
+Copy
+static async Task Main()
+{
+    Console.WriteLine("Application started.");
+
+    try
+    {
+        s_cts.CancelAfter(3500);
+
+        await SumPageSizesAsync();
+    }
+    catch (OperationCanceledException)
+    {
+        Console.WriteLine("\nTasks cancelled: timed out.\n");
+    }
+    finally
+    {
+        s_cts.Dispose();
+    }
+
+    Console.WriteLine("Application ending.");
+}
+The updated Main method writes a few instructional messages to the console. Within the try-catch, a call to CancellationTokenSource.CancelAfter(Int32) schedules a cancellation. This will signal cancellation after a period of time.
+
+Next, the SumPageSizesAsync method is awaited. If processing all of the URLs occurs faster than the scheduled cancellation, the application ends. However, if the scheduled cancellation is triggered before all of the URLs are processed, a OperationCanceledException is thrown.
+
+Example application output
+Console
+
+Copy
+Application started.
+
+https://learn.microsoft.com                                       37,357
+https://learn.microsoft.com/aspnet/core                           85,589
+https://learn.microsoft.com/azure                                398,939
+https://learn.microsoft.com/azure/devops                          73,663
+
+Tasks cancelled: timed out.
+
+Application ending.
+Complete example
+The following code is the complete text of the Program.cs file for the example.
+
+C#
+
+Copy
+using System.Diagnostics;
+
+class Program
+{
+    static readonly CancellationTokenSource s_cts = new CancellationTokenSource();
+
+    static readonly HttpClient s_client = new HttpClient
+    {
+        MaxResponseContentBufferSize = 1_000_000
+    };
+
+    static readonly IEnumerable<string> s_urlList = new string[]
+    {
+            "https://learn.microsoft.com",
+            "https://learn.microsoft.com/aspnet/core",
+            "https://learn.microsoft.com/azure",
+            "https://learn.microsoft.com/azure/devops",
+            "https://learn.microsoft.com/dotnet",
+            "https://learn.microsoft.com/dynamics365",
+            "https://learn.microsoft.com/education",
+            "https://learn.microsoft.com/enterprise-mobility-security",
+            "https://learn.microsoft.com/gaming",
+            "https://learn.microsoft.com/graph",
+            "https://learn.microsoft.com/microsoft-365",
+            "https://learn.microsoft.com/office",
+            "https://learn.microsoft.com/powershell",
+            "https://learn.microsoft.com/sql",
+            "https://learn.microsoft.com/surface",
+            "https://learn.microsoft.com/system-center",
+            "https://learn.microsoft.com/visualstudio",
+            "https://learn.microsoft.com/windows",
+            "https://learn.microsoft.com/maui"
+    };
+
+    static async Task Main()
+    {
+        Console.WriteLine("Application started.");
+
+        try
+        {
+            s_cts.CancelAfter(3500);
+
+            await SumPageSizesAsync();
+        }
+        catch (OperationCanceledException)
+        {
+            Console.WriteLine("\nTasks cancelled: timed out.\n");
+        }
+        finally
+        {
+            s_cts.Dispose();
+        }
+
+        Console.WriteLine("Application ending.");
+    }
+
+    static async Task SumPageSizesAsync()
+    {
+        var stopwatch = Stopwatch.StartNew();
+
+        int total = 0;
+        foreach (string url in s_urlList)
+        {
+            int contentLength = await ProcessUrlAsync(url, s_client, s_cts.Token);
+            total += contentLength;
+        }
+
+        stopwatch.Stop();
+
+        Console.WriteLine($"\nTotal bytes returned:  {total:#,#}");
+        Console.WriteLine($"Elapsed time:          {stopwatch.Elapsed}\n");
+    }
+
+    static async Task<int> ProcessUrlAsync(string url, HttpClient client, CancellationToken token)
+    {
+        HttpResponseMessage response = await client.GetAsync(url, token);
+        byte[] content = await response.Content.ReadAsByteArrayAsync(token);
+        Console.WriteLine($"{url,-60} {content.Length,10:#,#}");
+
+        return content.Length;
+    }
+}
+See also
+CancellationToken
+CancellationTokenSource
+Asynchronous programming with async and await (C#)
+Cancel a list of tasks (C#)
+ Collaborate with us on GitHub
+The source for this content can be found on GitHub, where you can also create and review issues and pull requests. For more information, see our contributor guide.
+
+.NET feedback
+
+.NET is an open source project. Select a link to provide feedback:
+
+ Open a documentation issue
+ Provide product feedback
+Additional resources
+Documentation
+
+Cancel a list of tasks - C#
+
+Learn how to use cancellation tokens to signal a cancellation request to a list of tasks.
+
+Task Cancellation - .NET
+
+Understand task cancellation, which is supported in the Task and Task classes through the use of cancellation tokens in .NET.
+
+Process asynchronous tasks as they complete - C#
+
+Learn how to use Task.WhenAny in C# to start multiple tasks and process their results as they finish, rather than process them in the order started.
+
+Generate and consume async streams - C#
+
+This advanced tutorial shows how to generate and consume async streams. Async streams provide a more natural way to work with sequences of data that may be generated asynchronously.
+
+Training
+
+Module
+
+Implement HTTP operations in ASP.NET Razor Pages - Training
+
+Implement HTTP operations in ASP.NET Razor Pages
+
+Manage cookies
+Previous Versions
+Blog
+Contribute
+Privacy
+Terms of Use
+Trademarks
+© Microsoft 2024
